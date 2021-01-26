@@ -36,10 +36,14 @@ export class ServerManager {
 
         if (isRandom) {
             let randomUserIndex = Math.floor(Math.random() * this.rooms[roomIndex].users.length);
-            this.rooms[roomIndex].users[randomUserIndex].isAdmin = true;
+            if (this.rooms[roomIndex].users[randomUserIndex]) {
+                this.rooms[roomIndex].users[randomUserIndex].isAdmin = true;
+            }
         }
         else {
-            this.rooms[roomIndex].users[0].isAdmin = true;
+            if (this.rooms[roomIndex].users[0]) {
+                this.rooms[roomIndex].users[0].isAdmin = true;
+            }
         }
     }
 

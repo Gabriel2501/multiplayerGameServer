@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 import { createServer } from 'http';
 import bodyParser = require('body-parser');
-const socketio = require('socket.io');
+import { Server, Socket } from "socket.io";
+import { Request } from 'express';
 
 class App {
     public app;
@@ -17,19 +18,19 @@ class App {
         this.app.use(bodyParser.json());
         this.app.use(bodyParser.urlencoded({ extended: true }));
         this.server = createServer(this.app);
-        this.io = socketio(this.server, {
+        this.io = new Server(this.server, {
             cors: {
-                origin: "*",
+                origin: "http://localhost:4200",
                 methods: ["GET", "POST"],
                 credentials: true
-            }
+            },
         });
         this.serverManager = new ServerManager();
 
         this.defineServerMethods();
 
-        this.app.get("/users", cors(), (req, res) => {
-            res.json(this.serverManager.getUsers());
+        this.app.get("/users", cors(), (req: Request, res) => {
+            res.json(this.serverManager.getUsers(req.query.room));
         });
 
     }
@@ -67,7 +68,7 @@ class App {
         this.updateUsers(room);
 
         //Registro de log
-        this.io.emit('log_event', username + " entrou na sala.");
+        this.io.in(room).emit('log_event', username + " entrou na sala.");
     }
 
     deleteUser(room, username) {
@@ -75,7 +76,7 @@ class App {
         this.updateUsers(room);
 
         //Registro de log
-        this.io.emit('log_event', username + " foi removido da sala.");
+        this.io.in(room).emit('log_event', username + " foi removido da sala.");
     };
 
     userLogout = (room, username) => {
@@ -83,7 +84,7 @@ class App {
         this.updateUsers(room);
 
         //Registro de log
-        this.io.emit('log_event', username + " saiu da sala.");
+        this.io.in(room).emit('log_event', username + " saiu da sala.");
     };
 
     startGame = () => {
@@ -91,7 +92,7 @@ class App {
     };
 
     updateUsers(room: string) {
-        this.io.emit('update_users', { users: this.serverManager.getUsers(room), admin: this.serverManager.getAdminUser(room) });
+        this.io.in(room).emit('update_users', { users: this.serverManager.getUsers(room), admin: this.serverManager.getAdminUser(room) });
     }
 }
-export default new App();
+export default new App().server;
