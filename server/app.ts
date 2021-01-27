@@ -43,8 +43,8 @@ class App {
             sock.on('delete_user', this.deleteUser);
             sock.on('user_logout', this.userLogout);
             sock.on('start_game', this.startGame);
-            sock.on('message', (room, text, username) => {
-                this.io.in(room).emit('message', text, username)
+            sock.on('message', (data) => {
+                this.io.in(data.room).emit('message', { user: data.username, text: data.text })
             });
 
             // Quando o admin desconecta, um outro usuario aleatorio assume posição de admin
