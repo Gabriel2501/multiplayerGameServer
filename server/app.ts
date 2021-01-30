@@ -29,6 +29,7 @@ class App {
                 credentials: true
             },
         });
+      this._webSocketConnection();
         this.serverManager = new ServerManager();
 
         this.defineServerMethods();
@@ -46,8 +47,7 @@ class App {
       this.app.use(bodyParser.urlencoded({extended: true}));
     }
 
-    defineServerMethods() {
-        this.io.on('connect', (sock) => {
+    private _webSocketConnection(): void {
             console.log("Novo usuário conectado.");
 
             sock.on('new_user', (room, username) => this.newUser(sock, room, username));
