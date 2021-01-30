@@ -20,9 +20,7 @@ class App {
     public serverManager: ServerManager;
     constructor() {
         this.app = express();
-        this.app.use(cors());
-        this.app.use(bodyParser.json());
-        this.app.use(bodyParser.urlencoded({ extended: true }));
+      this._initExpressOptions();
         this.server = createServer(this.app);
         this.io = new Server(this.server, {
             cors: {
@@ -39,6 +37,13 @@ class App {
             res.json(this.serverManager.getUsers(req.query.room));
         });
 
+    /**
+     *
+     */
+    private _initExpressOptions(): void {
+      this.app.use(cors());
+      this.app.use(bodyParser.json());
+      this.app.use(bodyParser.urlencoded({extended: true}));
     }
 
     defineServerMethods() {
