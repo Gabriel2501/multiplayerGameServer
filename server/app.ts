@@ -11,11 +11,13 @@ import {Server, Socket} from "socket.io";
 import {ServerManager} from "./server-manager";
 import {IUser} from "./interfaces/user";
 class App {
-    public app;
-    public server;
-    public io;
-    public serverManager;
+    // Third-parties class instances
+    public app: express.Application;
+    public server: http.Server;
+    public io: Server
 
+    // Local class instances
+    public serverManager: ServerManager;
     constructor() {
         this.app = express();
         this.app.use(cors());
