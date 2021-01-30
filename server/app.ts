@@ -1,3 +1,4 @@
+// Third-Parties
 import http from "http";
 import cors from "cors";
 import express, {Response} from "express";
@@ -10,6 +11,10 @@ import {Server, Socket} from "socket.io";
 // Local files
 import {ServerManager} from "./server-manager";
 import {IUser} from "./interfaces/user";
+
+/**
+ *
+ */
 class App {
     // Third-parties class instances
     public app: express.Application;
@@ -18,25 +23,26 @@ class App {
 
     // Local class instances
     public serverManager: ServerManager;
+
+    // eslint-disable-next-line require-jsdoc
     constructor() {
-        this.app = express();
+      // express configs
+      this.app = express();
       this._initExpressOptions();
-        this.server = createServer(this.app);
-        this.io = new Server(this.server, {
-            cors: {
-                origin: "http://localhost:4200",
-                methods: ["GET", "POST"],
-                credentials: true
-            },
-        });
+
+      // webSocket configs
+      this.server = createServer(this.app);
+      this.io = new Server(this.server, {
+        cors: {origin: "http://localhost:4200", methods: ["GET", "POST"], credentials: true},
+      });
       this._webSocketConnection();
-        this.serverManager = new ServerManager();
 
-        this.defineServerMethods();
+      this.serverManager = new ServerManager();
 
-        this.app.get("/users", cors(), (req: Request, res) => {
-            res.json(this.serverManager.getUsers(req.query.room));
-        });
+      this.app.get("/users", cors(), (req: Request, res: Response) => {
+        return res.json(this.serverManager.getUsers(req.query.room.toString()));
+      });
+    }
 
     /**
      *
@@ -47,63 +53,98 @@ class App {
       this.app.use(bodyParser.urlencoded({extended: true}));
     }
 
+    /**
+     *
+     */
     private _webSocketConnection(): void {
-            console.log("Novo usuário conectado.");
+      this.io.on("connect", (sock: Socket) => {
+        console.log("Novo usuário conectado.");
 
-            sock.on('new_user', (room, username) => this.newUser(sock, room, username));
-            sock.on('delete_user', this.deleteUser);
-            sock.on('user_logout', this.userLogout);
-            sock.on('start_game', this.startGame);
-            sock.on('message', (data) => {
-                this.io.in(data.room).emit('message', { user: data.username, text: data.text })
-            });
-
-            // Quando o admin desconecta, um outro usuario aleatorio assume posição de admin
-            sock.on('disconnect', () => {
-                let roomName = this.serverManager.getRoom(sock.id);
-                if (!this.serverManager.getUsers(roomName).includes(this.serverManager.getAdminUser(roomName))) {
-                    this.serverManager.setAdminUser(roomName, true);
-                }
-                this.updateUsers(roomName);
-            });
+        sock.on("new_user", (room, username) => {
+          this.newUser(sock, room, username);
         });
+        sock.on("delete_user", this.deleteUser);
+        sock.on("user_logout", this.userLogout);
+        sock.on("start_game", this.startGame);
+        sock.on("message", (data) => {
+          const obj = {user: data.username, text: data.text};
+          this.io.in(data.room).emit("message", obj);
+        });
+
+        // Quando o admin desconecta, um outro usuario aleatorio assume posição de admin
+        sock.on("disconnect", () => {
+          const roomName = this.serverManager.getRoom(sock.id);
+          const users = this.serverManager.getUsers(roomName);
+
+          if (!users.includes(this.serverManager.getAdminUser(roomName))) {
+            this.serverManager.setAdminUser(roomName, true);
+          }
+          this.updateUsers(roomName);
+        });
+      });
     }
 
-    newUser(socket, room, username) {
-        socket.join(room);
-        let users = this.serverManager.getUsers();
-        if (users.length == 0) {
-            this.serverManager.setAdminUser(username);
-        }
-        this.serverManager.addUser(socket.id, room, username);
-        this.updateUsers(room);
+    /**
+     *
+     * @param {Socket} socket
+     * @param {string} room
+     * @param {username} username
+     */
+    newUser(socket: Socket, room: string, username: string): void {
+      socket.join(room);
+      const users = this.serverManager.getUsers(room);
+      if (users.length == 0) {
+        this.serverManager.setAdminUser(username);
+      }
+      this.serverManager.addUser(socket.id, room, username);
+      this.updateUsers(room);
 
-        //Registro de log
-        this.io.in(room).emit('log_event', username + " entrou na sala.");
+      // Registro de log
+      this.io.in(room).emit("log_event", username + " entrou na sala.");
     }
 
-    deleteUser(room, username) {
-        this.serverManager.deleteUser(room, username);
-        this.updateUsers(room);
+    /**
+     *
+     * @param {string} room
+     * @param {string} username
+     */
+    deleteUser(room: string, username: string): void {
+      this.serverManager.deleteUser(room, username);
+      this.updateUsers(room);
 
-        //Registro de log
-        this.io.in(room).emit('log_event', username + " foi removido da sala.");
-    };
+      // Registro de log
+      this.io.in(room).emit("log_event", username + " foi removido da sala.");
+    }
 
-    userLogout = (room, username) => {
-        this.serverManager.deleteUser(room, username);
-        this.updateUsers(room);
+    /**
+     *
+     * @param {string} room
+     * @param {string} username
+     */
+    userLogout(room: string, username: string): void {
+      this.serverManager.deleteUser(room, username);
+      this.updateUsers(room);
 
-        //Registro de log
-        this.io.in(room).emit('log_event', username + " saiu da sala.");
-    };
+      // Registro de log
+      this.io.in(room).emit("log_event", username + " saiu da sala.");
+    }
 
-    startGame = () => {
-        //implementar jogo
-    };
 
-    updateUsers(room: string) {
-        this.io.in(room).emit('update_users', { users: this.serverManager.getUsers(room), admin: this.serverManager.getAdminUser(room) });
+    /**
+     *
+     */
+    startGame(): void {
+      // implementar jogo
+    }
+
+    /**
+     *
+     * @param {string}room
+     */
+    updateUsers(room: string): void {
+      const users:IUser[] = this.serverManager.getUsers(room);
+      const adminUser:IUser = this.serverManager.getAdminUser(room);
+      this.io.in(room).emit("update_users", {users: users, admin: adminUser});
     }
 }
 export default new App().server;
