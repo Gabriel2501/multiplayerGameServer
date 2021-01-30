@@ -1,11 +1,15 @@
-import { ServerManager } from './server-manager';
-const express = require('express');
-const cors = require('cors');
-import { createServer } from 'http';
-import bodyParser = require('body-parser');
-import { Server, Socket } from "socket.io";
-import { Request } from 'express';
+import http from "http";
+import cors from "cors";
+import express, {Response} from "express";
+import {Request} from "express";
+import {createServer} from "http";
+import bodyParser from "body-parser";
+import {Server, Socket} from "socket.io";
 
+
+// Local files
+import {ServerManager} from "./server-manager";
+import {IUser} from "./interfaces/user";
 class App {
     public app;
     public server;
