@@ -27,8 +27,11 @@ export class ServerManager {
         })?.name;
     }
 
-    getUsers(roomName: string): IUser[] {
-        return this.rooms[this._getRoomIndex(roomName)]?.users;
+    getUsers(roomName: string, newUser?: boolean): IUser[] {
+        if (newUser || this.doRoomExist(roomName)) {
+            return this.rooms[this._getRoomIndex(roomName)]?.users;
+        }
+        return undefined;
     }
 
     setAdminUser(roomName: string, isRandom?: boolean): void {
@@ -48,7 +51,10 @@ export class ServerManager {
     }
 
     getAdminUser(roomName: string): IUser {
-        return this.rooms[this._getRoomIndex(roomName)].users.find((user: IUser) => user.isAdmin);
+        if (this.doRoomExist(roomName)) {
+            return this.rooms[this._getRoomIndex(roomName)].users?.find((user: IUser) => user.isAdmin);
+        }
+        return undefined;
     }
 
     addUser(socketID: string, roomName: string, username: string): void {
@@ -58,10 +64,16 @@ export class ServerManager {
     deleteUser(roomName: string, username: string): void {
         let roomIndex = this._getRoomIndex(roomName);
         this.rooms[roomIndex].users.splice(this._getUserIndex(roomIndex, username), 1);
+
+        if (this.rooms[roomIndex].users.length == 0) this.deleteRoom(roomName);
     }
 
     deleteRoom(roomName: string): void {
         this.rooms.splice(this._getRoomIndex(roomName), 1);
+    }
+
+    doRoomExist(roomName: string): boolean {
+        return this.rooms?.findIndex((room: IRoom) => room.name === roomName) !== -1;
     }
 
 }
