@@ -73,7 +73,9 @@ class App {
       sock.on("delete_user", (data) => {
         this.deleteUser(data.room, data.username);
       });
-      sock.on("user_logout", this.userLogout);
+      sock.on("user_logout", (data) => {
+        this.deleteUser(data.room, data.emissor);
+      });
       sock.on("start_game", (data) => {
         this.startGame(data.room);
       });
@@ -112,7 +114,7 @@ class App {
     this.updateUsers(room);
 
     // Registro de log
-    this.io.in(room).emit("log_event", username + " entrou na sala.");
+    this.io.in(room).emit("log_event", { logText: `${username} entrou na sala.` });
   }
 
   /**
@@ -127,20 +129,7 @@ class App {
     this.io.in(room).emit("force_disconnect", username);
 
     // Registro de log
-    this.io.in(room).emit("log_event", username + " foi removido da sala.");
-  }
-
-  /**
-   *
-   * @param {string} room
-   * @param {string} username
-   */
-  userLogout(room: string, username: string): void {
-    this.serverManager.deleteUser(room, username);
-    this.updateUsers(room);
-
-    // Registro de log
-    this.io.in(room).emit("log_event", username + " saiu da sala.");
+    this.io.in(room).emit("log_event", { logText: `${username} saiu da sala.` });
   }
 
 
