@@ -63,7 +63,7 @@ class App {
       /**
        * Para todos os métodos de sock.on, sempre existirão:
        * data.room
-       * data.emissor
+       * data.emitter
        * 
        * Mais o que for passado como objeto para o emitEvent do client
        */
@@ -74,13 +74,13 @@ class App {
         this.deleteUser(data.room, data.username);
       });
       sock.on("user_logout", (data) => {
-        this.deleteUser(data.room, data.emissor);
+        this.deleteUser(data.room, data.emitter);
       });
       sock.on("start_game", (data) => {
         this.startGame(data.room);
       });
       sock.on("message", (data) => {
-        const obj = { user: data.username, text: data.text };
+        const obj = { user: data.emitter, text: data.text };
         this.io.in(data.room).emit("message", obj);
       });
 
