@@ -114,7 +114,7 @@ class App {
     this.updateUsers(room);
 
     // Registro de log
-    this.io.in(room).emit("log_event", { logText: `${username} entrou na sala.` });
+    this.io.in(room).emit("log_event", {username: username, logKey: "JoinRoom"});
   }
 
   /**
@@ -129,7 +129,7 @@ class App {
     this.io.in(room).emit("force_disconnect", username);
 
     // Registro de log
-    this.io.in(room).emit("log_event", { logText: `${username} saiu da sala.` });
+    this.io.in(room).emit("log_event", {username: username, logKey: "LeaveRoom"});
   }
 
 
