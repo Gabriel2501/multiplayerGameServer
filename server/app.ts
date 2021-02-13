@@ -97,9 +97,9 @@ class App {
     if (users.length == 1) {
       this.serverManager.setAdminUser(username);
     }
-
-    this.updateUsers(room);
+    
     this.emitLogEvent(room, username, "JoinRoom");
+    this.updateUsers(room);
   }
 
   /**
