@@ -1,5 +1,6 @@
 import { IUser } from './interfaces/user';
 import { IRoom } from './interfaces/room';
+import { Server } from 'socket.io';
 
 export class ServerManager {
     rooms: IRoom[];
@@ -13,7 +14,7 @@ export class ServerManager {
         if (roomIndex !== -1) {
             return roomIndex;
         }
-        this.rooms.push({ name: roomName, users: [] });
+        this.rooms.push({ name: roomName, users: [], active: true });
         return this.rooms.length - 1;
     }
 
@@ -63,8 +64,8 @@ export class ServerManager {
 
     deleteUser(roomName: string, username: string): void {
         let roomIndex = this._getRoomIndex(roomName);
-        this.rooms[roomIndex].users.splice(this._getUserIndex(roomIndex, username), 1);
 
+        this.rooms[roomIndex].users.splice(this._getUserIndex(roomIndex, username), 1);
         if (this.rooms[roomIndex].users.length == 0) this.deleteRoom(roomName);
     }
 
@@ -74,6 +75,31 @@ export class ServerManager {
 
     doRoomExist(roomName: string): boolean {
         return this.rooms?.findIndex((room: IRoom) => room.name === roomName) !== -1;
+    }
+
+    newActivity(roomName: string, io: Server): void {
+        let roomIndex = this._getRoomIndex(roomName);
+        let room = this.rooms[roomIndex];
+
+        if (this.doRoomExist(roomName) && room.active) {
+            room.inactivityTime = 0;
+            room.active = true;
+
+            if (room.interval) clearInterval(room.interval);
+
+            room.interval = setInterval(() => {
+                room.inactivityTime++;
+                if (room.inactivityTime >= 30) {
+                    console.log(`Sala ${roomName} removida por inatividade.`);
+                    room.active = false;
+                    clearInterval(room.interval);
+                    while (room.users.length > 0) {
+                        io.in(roomName).emit("force_disconnect", room.users[0].name);
+                        this.deleteUser(roomName, room.users[0].name);
+                    }
+                }
+            }, 60000);
+        }
     }
 
 }

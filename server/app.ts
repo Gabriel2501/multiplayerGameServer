@@ -60,40 +60,24 @@ class App {
     this.io.on("connect", (sock: Socket) => {
       console.log("Novo usuário conectado.");
 
-      /**
+      /*
        * Para todos os métodos de sock.on, sempre existirão:
        * data.room
        * data.emitter
        * 
        * Mais o que for passado como objeto para o emitEvent do client
        */
-      sock.on("new_user", (room, username) => {
-        this.newUser(sock, room, username);
-      });
-      sock.on("delete_user", (data) => {
-        this.deleteUser(data.room, data.username);
-      });
-      sock.on("user_logout", (data) => {
-        this.deleteUser(data.room, data.emitter);
-      });
-      sock.on("start_game", (data) => {
-        this.startGame(data.room);
-      });
-      sock.on("message", (data) => {
-        const obj = { user: data.emitter, text: data.text };
-        this.io.in(data.room).emit("message", obj);
-      });
+      sock.on("new_user", (data) => this.newUser(sock, data.room, data.username));
+      sock.on("delete_user", (data) => this.deleteUser(data.room, data.username));
+      sock.on("user_logout", (data) => this.deleteUser(data.room, data.emitter));
+      sock.on("start_game", (data) => this.startGame(data.room));
+      sock.on("message", (data) => this.sendMessage(data));
 
-      // Quando o admin desconecta, um outro usuario aleatorio assume posição de admin
-      sock.on("disconnect", () => {
-        const roomName = this.serverManager.getRoom(sock.id);
-        const users = this.serverManager.getUsers(roomName);
-        if (roomName && users) {
-          if (!users.includes(this.serverManager.getAdminUser(roomName))) {
-            this.serverManager.setAdminUser(roomName, true);
-          }
-        }
-        this.updateUsers(roomName);
+      sock.on("disconnect", () => this.disconnectUser(sock));
+
+      sock.onAny((eventName: string, ...args: any) => {
+        let room = args[0]['room'];
+        this.serverManager.newActivity(room, this.io);
       });
     });
   }
@@ -107,14 +91,15 @@ class App {
   newUser(socket: Socket, room: string, username: string): void {
     socket.join(room);
     const users = this.serverManager.getUsers(room, true);
-    if (users.length == 0) {
+
+    this.serverManager.addUser(socket.id, room, username);
+
+    if (users.length == 1) {
       this.serverManager.setAdminUser(username);
     }
-    this.serverManager.addUser(socket.id, room, username);
-    this.updateUsers(room);
 
-    // Registro de log
-    this.io.in(room).emit("log_event", {username: username, logKey: "JoinRoom"});
+    this.updateUsers(room);
+    this.emitLogEvent(room, username, "JoinRoom");
   }
 
   /**
@@ -122,14 +107,22 @@ class App {
    * @param {string} room
    * @param {string} username
    */
-  deleteUser(room: string, username: string): void {
-    this.serverManager.deleteUser(room, username);
-    this.updateUsers(room);
+  deleteUser(room: string, username: string, wipeRoom?: boolean): void {
+    if (wipeRoom) {
+      this.serverManager.getUsers(room).forEach(user => {
+        this.serverManager.deleteUser(room, user.name);
+        this.io.in(room).emit("force_disconnect", user.name);
+      });
+    }
+    else {
+      this.serverManager.deleteUser(room, username);
+      this.updateUsers(room);
 
-    this.io.in(room).emit("force_disconnect", username);
+      this.io.in(room).emit("force_disconnect", username);
 
-    // Registro de log
-    this.io.in(room).emit("log_event", {username: username, logKey: "LeaveRoom"});
+      this.emitLogEvent(room, username, "LeaveRoom");
+    }
+
   }
 
 
@@ -145,8 +138,8 @@ class App {
    * @param {string}room
    */
   updateUsers(room: string): void {
-    const users: IUser[] = this.serverManager.getUsers(room, false);
-    const adminUser: IUser = this.serverManager.getAdminUser(room);
+    let users: IUser[] = this.serverManager.getUsers(room, false);
+    let adminUser: IUser = this.serverManager.getAdminUser(room);
 
     if (users) {
       if (adminUser) {
@@ -154,9 +147,44 @@ class App {
       }
       else {
         this.serverManager.setAdminUser(room, true);
+        adminUser = this.serverManager.getAdminUser(room);
+        this.emitLogEvent(room, adminUser?.name, "NewAdmin");
         this.updateUsers(room);
       }
     }
+  }
+
+  /**
+   * 
+   * @param data 
+   */
+  sendMessage(data: any): void {
+    this.io.in(data.room).emit("message", { user: data.emitter, text: data.text });
+  }
+
+  /**
+   * 
+   * @param {Socket}sock 
+   */
+  disconnectUser(sock: Socket): void {
+    const roomName = this.serverManager.getRoom(sock.id);
+    const users = this.serverManager.getUsers(roomName);
+    if (roomName && users) {
+      if (!users.includes(this.serverManager.getAdminUser(roomName))) {
+        this.serverManager.setAdminUser(roomName, true);
+      }
+    }
+    this.updateUsers(roomName);
+  }
+
+  /**
+   * 
+   * @param {string}room Nome da sala
+   * @param {string}username Nome do usuário
+   * @param {string}logKey Chave do texto nos arquivos de idiomas
+   */
+  emitLogEvent(room: string, username: string, logKey: string): void {
+    this.io.in(room).emit("log_event", { username: username, logKey: logKey });
   }
 }
 export default new App().server;
